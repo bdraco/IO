@@ -901,7 +901,8 @@ sub watchdog ($)
     # Use a watchdog thread because either 'threads' is loaded,
     #   or fork() failed
     if (eval 'require threads; 1') {
-        threads->create(sub {
+        no warnings 'bareword'; #make perl 5.6 happy
+	threads->create(sub {
                 # Load POSIX if available
                 eval { require POSIX; };
 

@@ -8,13 +8,15 @@ package IO::Socket;
 
 require 5.006;
 
-use IO::Handle;
-use Socket 1.3;
-use Carp;
+use IO::Handle ();
+use Socket 1.3    ();
+use Carp       ();
 use strict;
+
 our(@ISA, $VERSION, @EXPORT_OK);
-use Exporter;
-use Errno;
+
+use Exporter   ();  # not a require because we want it to happen before INIT
+use Errno      ();  
 
 # legacy
 
@@ -22,18 +24,20 @@ require IO::Socket::INET;
 require IO::Socket::UNIX if ($^O ne 'epoc' && $^O ne 'symbian');
 
 @ISA = qw(IO::Handle);
-
-$VERSION = "1.31";
-
+$VERSION = "1.33";
 @EXPORT_OK = qw(sockatmark);
 
 sub import {
     my $pkg = shift;
     if (@_ && $_[0] eq 'sockatmark') { # not very extensible but for now, fast
-	Exporter::export_to_level('IO::Socket', 1, $pkg, 'sockatmark');
+		Exporter::export_to_level('IO::Socket', 1, $pkg, 'sockatmark');
     } else {
-	my $callpkg = caller;
-	Exporter::export 'Socket', $callpkg, @_;
+#
+# For compatibilty, if we ask to import this module we need to give them
+# all the IO::Handle and Socket symbols that are no longer imported in order to reduce memory usage
+#
+        my $callpkg = caller;
+		Exporter::export 'Socket', $callpkg, @_;
     }
 }
 
@@ -60,13 +64,13 @@ sub configure {
     my($sock,$arg) = @_;
     my $domain = delete $arg->{Domain};
 
-    croak 'IO::Socket: Cannot configure a generic socket'
+    Carp::croak 'IO::Socket: Cannot configure a generic socket'
 	unless defined $domain;
 
-    croak "IO::Socket: Unsupported socket domain"
+    Carp::croak "IO::Socket: Unsupported socket domain"
 	unless defined $domain2pkg[$domain];
 
-    croak "IO::Socket: Cannot configure socket in domain '$domain'"
+    Carp::croak "IO::Socket: Cannot configure socket in domain '$domain'"
 	unless ref($sock) eq "IO::Socket";
 
     bless($sock, $domain2pkg[$domain]);
@@ -74,7 +78,7 @@ sub configure {
 }
 
 sub socket {
-    @_ == 4 or croak 'usage: $sock->socket(DOMAIN, TYPE, PROTOCOL)';
+    @_ == 4 or Carp::croak 'usage: $sock->socket(DOMAIN, TYPE, PROTOCOL)';
     my($sock,$domain,$type,$protocol) = @_;
 
     socket($sock,$domain,$type,$protocol) or
@@ -88,7 +92,7 @@ sub socket {
 }
 
 sub socketpair {
-    @_ == 4 || croak 'usage: IO::Socket->socketpair(DOMAIN, TYPE, PROTOCOL)';
+    @_ == 4 || Carp::croak 'usage: IO::Socket->socketpair(DOMAIN, TYPE, PROTOCOL)';
     my($class,$domain,$type,$protocol) = @_;
     my $sock1 = $class->new();
     my $sock2 = $class->new();
@@ -103,7 +107,7 @@ sub socketpair {
 }
 
 sub connect {
-    @_ == 2 or croak 'usage: $sock->connect(NAME)';
+    @_ == 2 or Carp::croak 'usage: $sock->connect(NAME)';
     my $sock = shift;
     my $addr = shift;
     my $timeout = ${*$sock}{'io_socket_timeout'};
@@ -112,30 +116,30 @@ sub connect {
 
     $blocking = $sock->blocking(0) if $timeout;
     if (!connect($sock, $addr)) {
-	if (defined $timeout && ($!{EINPROGRESS} || $!{EWOULDBLOCK})) {
-	    require IO::Select;
+    if (defined $timeout && ($!{EINPROGRESS} || $!{EWOULDBLOCK})) {
+        require IO::Select;
 
-	    my $sel = new IO::Select $sock;
+        my $sel = new IO::Select $sock;
 
-	    undef $!;
-	    if (!$sel->can_write($timeout)) {
-		$err = $! || (exists &Errno::ETIMEDOUT ? &Errno::ETIMEDOUT : 1);
-		$@ = "connect: timeout";
-	    }
-	    elsif (!connect($sock,$addr) &&
+        undef $!;
+        if (!$sel->can_write($timeout)) {
+        $err = $! || (exists &Errno::ETIMEDOUT ? &Errno::ETIMEDOUT : 1);
+        $@ = "connect: timeout";
+        }
+        elsif (!connect($sock,$addr) &&
                 not ($!{EISCONN} || ($! == 10022 && $^O eq 'MSWin32'))
             ) {
-		# Some systems refuse to re-connect() to
-		# an already open socket and set errno to EISCONN.
-		# Windows sets errno to WSAEINVAL (10022)
-		$err = $!;
-		$@ = "connect: $!";
-	    }
-	}
+        # Some systems refuse to re-connect() to
+        # an already open socket and set errno to EISCONN.
+        # Windows sets errno to WSAEINVAL (10022)
+        $err = $!;
+        $@ = "connect: $!";
+        }
+    }
         elsif ($blocking || !($!{EINPROGRESS} || $!{EWOULDBLOCK}))  {
-	    $err = $!;
-	    $@ = "connect: $!";
-	}
+        $err = $!;
+        $@ = "connect: $!";
+    }
     }
 
     $sock->blocking(1) if $blocking;
@@ -144,7 +148,6 @@ sub connect {
 
     $err ? undef : $sock;
 }
-
 # Enable/disable blocking IO on sockets.
 # Without args return the current status of blocking,
 # with args change the mode as appropriate, returning the
@@ -189,14 +192,14 @@ sub blocking {
 
 
 sub close {
-    @_ == 1 or croak 'usage: $sock->close()';
+    @_ == 1 or Carp::croak 'usage: $sock->close()';
     my $sock = shift;
     ${*$sock}{'io_socket_peername'} = undef;
     $sock->SUPER::close();
 }
 
 sub bind {
-    @_ == 2 or croak 'usage: $sock->bind(NAME)';
+    @_ == 2 or Carp::croak 'usage: $sock->bind(NAME)';
     my $sock = shift;
     my $addr = shift;
 
@@ -205,7 +208,7 @@ sub bind {
 }
 
 sub listen {
-    @_ >= 1 && @_ <= 2 or croak 'usage: $sock->listen([QUEUE])';
+    @_ >= 1 && @_ <= 2 or Carp::croak 'usage: $sock->listen([QUEUE])';
     my($sock,$queue) = @_;
     $queue = 5
 	unless $queue && $queue > 0;
@@ -215,7 +218,7 @@ sub listen {
 }
 
 sub accept {
-    @_ == 1 || @_ == 2 or croak 'usage $sock->accept([PKG])';
+    @_ == 1 || @_ == 2 or Carp::croak 'usage $sock->accept([PKG])';
     my $sock = shift;
     my $pkg = shift || $sock;
     my $timeout = ${*$sock}{'io_socket_timeout'};
@@ -242,29 +245,29 @@ sub accept {
 }
 
 sub sockname {
-    @_ == 1 or croak 'usage: $sock->sockname()';
+    @_ == 1 or Carp::croak 'usage: $sock->sockname()';
     getsockname($_[0]);
 }
 
 sub peername {
-    @_ == 1 or croak 'usage: $sock->peername()';
+    @_ == 1 or Carp::croak 'usage: $sock->peername()';
     my($sock) = @_;
     ${*$sock}{'io_socket_peername'} ||= getpeername($sock);
 }
 
 sub connected {
-    @_ == 1 or croak 'usage: $sock->connected()';
+    @_ == 1 or Carp::croak 'usage: $sock->connected()';
     my($sock) = @_;
     getpeername($sock);
 }
 
 sub send {
-    @_ >= 2 && @_ <= 4 or croak 'usage: $sock->send(BUF, [FLAGS, [TO]])';
+    @_ >= 2 && @_ <= 4 or Carp::croak 'usage: $sock->send(BUF, [FLAGS, [TO]])';
     my $sock  = $_[0];
     my $flags = $_[2] || 0;
     my $peer  = $_[3] || $sock->peername;
 
-    croak 'send: Cannot determine peer address'
+    Carp::croak 'send: Cannot determine peer address'
 	 unless(defined $peer);
 
     my $r = defined(getpeername($sock))
@@ -279,7 +282,7 @@ sub send {
 }
 
 sub recv {
-    @_ == 3 || @_ == 4 or croak 'usage: $sock->recv(BUF, LEN [, FLAGS])';
+    @_ == 3 || @_ == 4 or Carp::croak 'usage: $sock->recv(BUF, LEN [, FLAGS])';
     my $sock  = $_[0];
     my $len   = $_[2];
     my $flags = $_[3] || 0;
@@ -289,21 +292,21 @@ sub recv {
 }
 
 sub shutdown {
-    @_ == 2 or croak 'usage: $sock->shutdown(HOW)';
+    @_ == 2 or Carp::croak 'usage: $sock->shutdown(HOW)';
     my($sock, $how) = @_;
     ${*$sock}{'io_socket_peername'} = undef;
     shutdown($sock, $how);
 }
 
 sub setsockopt {
-    @_ == 4 or croak '$sock->setsockopt(LEVEL, OPTNAME, OPTVAL)';
+    @_ == 4 or Carp::croak '$sock->setsockopt(LEVEL, OPTNAME, OPTVAL)';
     setsockopt($_[0],$_[1],$_[2],$_[3]);
 }
 
 my $intsize = length(pack("i",0));
 
 sub getsockopt {
-    @_ == 3 or croak '$sock->getsockopt(LEVEL, OPTNAME)';
+    @_ == 3 or Carp::croak '$sock->getsockopt(LEVEL, OPTNAME)';
     my $r = getsockopt($_[0],$_[1],$_[2]);
     # Just a guess
     $r = unpack("i", $r)
@@ -313,18 +316,18 @@ sub getsockopt {
 
 sub sockopt {
     my $sock = shift;
-    @_ == 1 ? $sock->getsockopt(SOL_SOCKET,@_)
-	    : $sock->setsockopt(SOL_SOCKET,@_);
+    @_ == 1 ? $sock->getsockopt(&Socket::SOL_SOCKET,@_)
+	    : $sock->setsockopt(&Socket::SOL_SOCKET,@_);
 }
 
 sub atmark {
-    @_ == 1 or croak 'usage: $sock->atmark()';
+    @_ == 1 or Carp::croak 'usage: $sock->atmark()';
     my($sock) = @_;
     sockatmark($sock);
 }
 
 sub timeout {
-    @_ == 1 || @_ == 2 or croak 'usage: $sock->timeout([VALUE])';
+    @_ == 1 || @_ == 2 or Carp::croak 'usage: $sock->timeout([VALUE])';
     my($sock,$val) = @_;
     my $r = ${*$sock}{'io_socket_timeout'};
 
@@ -335,19 +338,19 @@ sub timeout {
 }
 
 sub sockdomain {
-    @_ == 1 or croak 'usage: $sock->sockdomain()';
+    @_ == 1 or Carp::croak 'usage: $sock->sockdomain()';
     my $sock = shift;
     ${*$sock}{'io_socket_domain'};
 }
 
 sub socktype {
-    @_ == 1 or croak 'usage: $sock->socktype()';
+    @_ == 1 or Carp::croak 'usage: $sock->socktype()';
     my $sock = shift;
     ${*$sock}{'io_socket_type'}
 }
 
 sub protocol {
-    @_ == 1 or croak 'usage: $sock->protocol()';
+    @_ == 1 or Carp::croak 'usage: $sock->protocol()';
     my($sock) = @_;
     ${*$sock}{'io_socket_proto'};
 }

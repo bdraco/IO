@@ -127,27 +127,29 @@ Derived from FileHandle.pm by Graham Barr E<lt>F<gbarr@pobox.com>E<gt>.
 use 5.006_001;
 use strict;
 our($VERSION, @EXPORT, @EXPORT_OK, @ISA);
-use Carp;
-use Symbol;
-use SelectSaver;
-use IO::Seekable;
-use File::Spec;
+use Carp ();
+use Symbol ();
+use SelectSaver ();
+use IO::Seekable ();
+use File::Spec ();
 
 require Exporter;
 
 @ISA = qw(IO::Handle IO::Seekable Exporter);
 
-$VERSION = "1.14";
+$VERSION = "1.15";
 
 @EXPORT = @IO::Seekable::EXPORT;
 
-eval {
+sub import {
     # Make all Fcntl O_XXX constants available for importing
     require Fcntl;
     my @O = grep /^O_/, @Fcntl::EXPORT;
     Fcntl->import(@O);  # first we import what we want to export
-    push(@EXPORT, @O);
-};
+    my $callpkg = caller;
+    Exporter::export __PACKAGE__, $callpkg, @EXPORT;
+    Exporter::export 'Fcntl', $callpkg, @O;
+}
 
 ################################################
 ## Constructor
@@ -157,7 +159,7 @@ sub new {
     my $type = shift;
     my $class = ref($type) || $type || "IO::File";
     @_ >= 0 && @_ <= 3
-	or croak "usage: new $class [FILENAME [,MODE [,PERMS]]]";
+	or Carp::croak "usage: new $class [FILENAME [,MODE [,PERMS]]]";
     my $fh = $class->SUPER::new();
     if (@_) {
 	$fh->open(@_)
@@ -171,7 +173,7 @@ sub new {
 ##
 
 sub open {
-    @_ >= 2 && @_ <= 4 or croak 'usage: $fh->open(FILENAME [,MODE [,PERMS]])';
+    @_ >= 2 && @_ <= 4 or Carp::croak 'usage: $fh->open(FILENAME [,MODE [,PERMS]])';
     my ($fh, $file) = @_;
     if (@_ > 2) {
 	my ($mode, $perms) = @_[2, 3];
@@ -180,7 +182,7 @@ sub open {
 	    return sysopen($fh, $file, $mode, $perms);
 	} elsif ($mode =~ /:/) {
 	    return open($fh, $mode, $file) if @_ == 3;
-	    croak 'usage: $fh->open(FILENAME, IOLAYERS)';
+	    Carp::croak 'usage: $fh->open(FILENAME, IOLAYERS)';
 	} else {
             return open($fh, IO::Handle::_open_mode_string($mode), $file);
         }
@@ -193,7 +195,7 @@ sub open {
 ##
 
 sub binmode {
-    ( @_ == 1 or @_ == 2 ) or croak 'usage $fh->binmode([LAYER])';
+    ( @_ == 1 or @_ == 2 ) or Carp::croak 'usage $fh->binmode([LAYER])';
 
     my($fh, $layer) = @_;
 

@@ -3,7 +3,7 @@
 package IO;
 
 use XSLoader ();
-use Carp;
+use Carp ();
 use strict;
 use warnings;
 

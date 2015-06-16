@@ -260,15 +260,15 @@ Derived from FileHandle.pm by Graham Barr E<lt>F<gbarr@pobox.com>E<gt>
 use 5.006_001;
 use strict;
 our($VERSION, @EXPORT_OK, @ISA);
-use Carp;
-use Symbol;
-use SelectSaver;
+use Carp ();
+use Symbol ();
+use SelectSaver ();
 use IO ();	# Load the XS module
+use Exporter   ();  # not a require because we want it to happen before INIT
 
-require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = "1.28";
+$VERSION = "1.29";
 $VERSION = eval $VERSION;
 
 @EXPORT_OK = qw(
@@ -309,15 +309,15 @@ $VERSION = eval $VERSION;
 
 sub new {
     my $class = ref($_[0]) || $_[0] || "IO::Handle";
-    @_ == 1 or croak "usage: new $class";
-    my $io = gensym;
+    @_ == 1 or Carp::croak "usage: new $class";
+    my $io = Symbol::gensym;
     bless $io, $class;
 }
 
 sub new_from_fd {
     my $class = ref($_[0]) || $_[0] || "IO::Handle";
-    @_ == 3 or croak "usage: new_from_fd $class FD, MODE";
-    my $io = gensym;
+    @_ == 3 or Carp::croak "usage: new_from_fd $class FD, MODE";
+    my $io = Symbol::gensym;
     shift;
     IO::Handle::fdopen($io, @_)
 	or return undef;
@@ -343,18 +343,18 @@ sub _open_mode_string {
       or $mode =~ s/^r(\+?)$/$1</
       or $mode =~ s/^w(\+?)$/$1>/
       or $mode =~ s/^a(\+?)$/$1>>/
-      or croak "IO::Handle: bad open mode: $mode";
+      or Carp::croak "IO::Handle: bad open mode: $mode";
     $mode;
 }
 
 sub fdopen {
-    @_ == 3 or croak 'usage: $io->fdopen(FD, MODE)';
+    @_ == 3 or Carp::croak 'usage: $io->fdopen(FD, MODE)';
     my ($io, $fd, $mode) = @_;
     local(*GLOB);
 
     if (ref($fd) && "".$fd =~ /GLOB\(/o) {
 	# It's a glob reference; Alias it as we cannot get name of anon GLOBs
-	my $n = qualify(*GLOB);
+	my $n = Symbol::qualify(*GLOB);
 	*GLOB = *{*$fd};
 	$fd =  $n;
     } elsif ($fd =~ m#^\d+$#) {
@@ -367,7 +367,7 @@ sub fdopen {
 }
 
 sub close {
-    @_ == 1 or croak 'usage: $io->close()';
+    @_ == 1 or Carp::croak 'usage: $io->close()';
     my($io) = @_;
 
     close($io);
@@ -381,46 +381,46 @@ sub close {
 # select
 
 sub opened {
-    @_ == 1 or croak 'usage: $io->opened()';
+    @_ == 1 or Carp::croak 'usage: $io->opened()';
     defined fileno($_[0]);
 }
 
 sub fileno {
-    @_ == 1 or croak 'usage: $io->fileno()';
+    @_ == 1 or Carp::croak 'usage: $io->fileno()';
     fileno($_[0]);
 }
 
 sub getc {
-    @_ == 1 or croak 'usage: $io->getc()';
+    @_ == 1 or Carp::croak 'usage: $io->getc()';
     getc($_[0]);
 }
 
 sub eof {
-    @_ == 1 or croak 'usage: $io->eof()';
+    @_ == 1 or Carp::croak 'usage: $io->eof()';
     eof($_[0]);
 }
 
 sub print {
-    @_ or croak 'usage: $io->print(ARGS)';
+    @_ or Carp::croak 'usage: $io->print(ARGS)';
     my $this = shift;
     print $this @_;
 }
 
 sub printf {
-    @_ >= 2 or croak 'usage: $io->printf(FMT,[ARGS])';
+    @_ >= 2 or Carp::croak 'usage: $io->printf(FMT,[ARGS])';
     my $this = shift;
     printf $this @_;
 }
 
 sub say {
-    @_ or croak 'usage: $io->say(ARGS)';
+    @_ or Carp::croak 'usage: $io->say(ARGS)';
     my $this = shift;
     local $\ = "\n";
     print $this @_;
 }
 
 sub getline {
-    @_ == 1 or croak 'usage: $io->getline()';
+    @_ == 1 or Carp::croak 'usage: $io->getline()';
     my $this = shift;
     return scalar <$this>;
 } 
@@ -428,37 +428,37 @@ sub getline {
 *gets = \&getline;  # deprecated
 
 sub getlines {
-    @_ == 1 or croak 'usage: $io->getlines()';
+    @_ == 1 or Carp::croak 'usage: $io->getlines()';
     wantarray or
-	croak 'Can\'t call $io->getlines in a scalar context, use $io->getline';
+	Carp::croak 'Can\'t call $io->getlines in a scalar context, use $io->getline';
     my $this = shift;
     return <$this>;
 }
 
 sub truncate {
-    @_ == 2 or croak 'usage: $io->truncate(LEN)';
+    @_ == 2 or Carp::croak 'usage: $io->truncate(LEN)';
     truncate($_[0], $_[1]);
 }
 
 sub read {
-    @_ == 3 || @_ == 4 or croak 'usage: $io->read(BUF, LEN [, OFFSET])';
+    @_ == 3 || @_ == 4 or Carp::croak 'usage: $io->read(BUF, LEN [, OFFSET])';
     read($_[0], $_[1], $_[2], $_[3] || 0);
 }
 
 sub sysread {
-    @_ == 3 || @_ == 4 or croak 'usage: $io->sysread(BUF, LEN [, OFFSET])';
+    @_ == 3 || @_ == 4 or Carp::croak 'usage: $io->sysread(BUF, LEN [, OFFSET])';
     sysread($_[0], $_[1], $_[2], $_[3] || 0);
 }
 
 sub write {
-    @_ >= 2 && @_ <= 4 or croak 'usage: $io->write(BUF [, LEN [, OFFSET]])';
+    @_ >= 2 && @_ <= 4 or Carp::croak 'usage: $io->write(BUF [, LEN [, OFFSET]])';
     local($\) = "";
     $_[2] = length($_[1]) unless defined $_[2];
     print { $_[0] } substr($_[1], $_[3] || 0, $_[2]);
 }
 
 sub syswrite {
-    @_ >= 2 && @_ <= 4 or croak 'usage: $io->syswrite(BUF [, LEN [, OFFSET]])';
+    @_ >= 2 && @_ <= 4 or Carp::croak 'usage: $io->syswrite(BUF [, LEN [, OFFSET]])';
     if (defined($_[2])) {
 	syswrite($_[0], $_[1], $_[2], $_[3] || 0);
     } else {
@@ -467,7 +467,7 @@ sub syswrite {
 }
 
 sub stat {
-    @_ == 1 or croak 'usage: $io->stat()';
+    @_ == 1 or Carp::croak 'usage: $io->stat()';
     stat($_[0]);
 }
 
@@ -476,14 +476,14 @@ sub stat {
 ##
 
 sub autoflush {
-    my $old = new SelectSaver qualify($_[0], caller);
+    my $old = new SelectSaver Symbol::qualify($_[0], caller);
     my $prev = $|;
     $| = @_ > 1 ? $_[1] : 1;
     $prev;
 }
 
 sub output_field_separator {
-    carp "output_field_separator is not supported on a per-handle basis"
+    Carp::carp "output_field_separator is not supported on a per-handle basis"
 	if ref($_[0]);
     my $prev = $,;
     $, = $_[1] if @_ > 1;
@@ -491,7 +491,7 @@ sub output_field_separator {
 }
 
 sub output_record_separator {
-    carp "output_record_separator is not supported on a per-handle basis"
+    Carp::carp "output_record_separator is not supported on a per-handle basis"
 	if ref($_[0]);
     my $prev = $\;
     $\ = $_[1] if @_ > 1;
@@ -499,7 +499,7 @@ sub output_record_separator {
 }
 
 sub input_record_separator {
-    carp "input_record_separator is not supported on a per-handle basis"
+    Carp::carp "input_record_separator is not supported on a per-handle basis"
 	if ref($_[0]);
     my $prev = $/;
     $/ = $_[1] if @_ > 1;
@@ -508,7 +508,7 @@ sub input_record_separator {
 
 sub input_line_number {
     local $.;
-    () = tell qualify($_[0], caller) if ref($_[0]);
+    () = tell Symbol::qualify($_[0], caller) if ref($_[0]);
     my $prev = $.;
     $. = $_[1] if @_ > 1;
     $prev;
@@ -516,7 +516,7 @@ sub input_line_number {
 
 sub format_page_number {
     my $old;
-    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    $old = new SelectSaver Symbol::qualify($_[0], caller) if ref($_[0]);
     my $prev = $%;
     $% = $_[1] if @_ > 1;
     $prev;
@@ -524,7 +524,7 @@ sub format_page_number {
 
 sub format_lines_per_page {
     my $old;
-    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    $old = new SelectSaver Symbol::qualify($_[0], caller) if ref($_[0]);
     my $prev = $=;
     $= = $_[1] if @_ > 1;
     $prev;
@@ -532,7 +532,7 @@ sub format_lines_per_page {
 
 sub format_lines_left {
     my $old;
-    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    $old = new SelectSaver Symbol::qualify($_[0], caller) if ref($_[0]);
     my $prev = $-;
     $- = $_[1] if @_ > 1;
     $prev;
@@ -540,22 +540,22 @@ sub format_lines_left {
 
 sub format_name {
     my $old;
-    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    $old = new SelectSaver Symbol::qualify($_[0], caller) if ref($_[0]);
     my $prev = $~;
-    $~ = qualify($_[1], caller) if @_ > 1;
+    $~ = Symbol::qualify($_[1], caller) if @_ > 1;
     $prev;
 }
 
 sub format_top_name {
     my $old;
-    $old = new SelectSaver qualify($_[0], caller) if ref($_[0]);
+    $old = new SelectSaver Symbol::qualify($_[0], caller) if ref($_[0]);
     my $prev = $^;
-    $^ = qualify($_[1], caller) if @_ > 1;
+    $^ = Symbol::qualify($_[1], caller) if @_ > 1;
     $prev;
 }
 
 sub format_line_break_characters {
-    carp "format_line_break_characters is not supported on a per-handle basis"
+    Carp::carp "format_line_break_characters is not supported on a per-handle basis"
 	if ref($_[0]);
     my $prev = $:;
     $: = $_[1] if @_ > 1;
@@ -563,7 +563,7 @@ sub format_line_break_characters {
 }
 
 sub format_formfeed {
-    carp "format_formfeed is not supported on a per-handle basis"
+    Carp::carp "format_formfeed is not supported on a per-handle basis"
 	if ref($_[0]);
     my $prev = $^L;
     $^L = $_[1] if @_ > 1;
@@ -580,10 +580,10 @@ sub formline {
 }
 
 sub format_write {
-    @_ < 3 || croak 'usage: $io->write( [FORMAT_NAME] )';
+    @_ < 3 || Carp::croak 'usage: $io->write( [FORMAT_NAME] )';
     if (@_ == 2) {
 	my ($io, $fmt) = @_;
-	my $oldfmt = $io->format_name(qualify($fmt,caller));
+	my $oldfmt = $io->format_name(Symbol::qualify($fmt,caller));
 	CORE::write($io);
 	$io->format_name($oldfmt);
     } else {
@@ -592,13 +592,13 @@ sub format_write {
 }
 
 sub fcntl {
-    @_ == 3 || croak 'usage: $io->fcntl( OP, VALUE );';
+    @_ == 3 || Carp::croak 'usage: $io->fcntl( OP, VALUE );';
     my ($io, $op) = @_;
     return fcntl($io, $op, $_[2]);
 }
 
 sub ioctl {
-    @_ == 3 || croak 'usage: $io->ioctl( OP, VALUE );';
+    @_ == 3 || Carp::croak 'usage: $io->ioctl( OP, VALUE );';
     my ($io, $op) = @_;
     return ioctl($io, $op, $_[2]);
 }
@@ -622,7 +622,7 @@ sub constant {
 sub printflush {
     my $io = shift;
     my $old;
-    $old = new SelectSaver qualify($io, caller) if ref($io);
+    $old = new SelectSaver Symbol::qualify($io, caller) if ref($io);
     local $| = 1;
     if(ref($io)) {
         print $io @_;
